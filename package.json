@@ -1,0 +1,13 @@
+{
+  "name": "ruff-vi-annotation-tool",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local RUFF-VI annotation tool with SQLite persistence and admin reporting.",
+  "scripts": {
+    "dev": "python3 app.py",
+    "start": "python3 app.py",
+    "test": "python3 -m py_compile app.py"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

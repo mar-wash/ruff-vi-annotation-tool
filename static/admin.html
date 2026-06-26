@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RUFF-VI Admin</title>
+    <link rel="stylesheet" href="/static/styles.css">
+  </head>
+  <body>
+    <div id="adminGate" class="modal" role="dialog" aria-modal="true">
+      <form id="adminForm" class="panel">
+        <h1>Admin view</h1>
+        <p>Enter the admin secret to view data, results, and inter-annotator agreement.</p>
+        <label>
+          Admin secret
+          <input id="adminKey" type="password" autocomplete="current-password">
+        </label>
+        <div id="adminError" class="error" aria-live="polite"></div>
+        <button type="submit">Open admin view</button>
+      </form>
+    </div>
+
+    <header class="topbar">
+      <strong>RUFF-VI Admin</strong>
+      <nav>
+        <button id="exportCsv" class="secondary">Export CSV</button>
+        <button id="refreshAdmin" class="secondary">Refresh</button>
+        <button id="lockAdmin" class="secondary">Lock</button>
+        <a href="/">Annotation</a>
+        <a href="/admin/import">Import</a>
+      </nav>
+    </header>
+
+    <main class="workspace">
+      <section class="section">
+        <h1>Overview</h1>
+        <div id="overviewGrid" class="summaryGrid"></div>
+      </section>
+
+      <section class="section">
+        <h2>Inter-Annotator Agreement</h2>
+        <div id="agreementGrid" class="summaryGrid"></div>
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>annotator A</th>
+                <th>annotator B</th>
+                <th>shared</th>
+                <th>agreements</th>
+                <th>% agreement</th>
+                <th>Cohen's kappa</th>
+              </tr>
+            </thead>
+            <tbody id="agreementPairs"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Instance Agreement</h2>
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>instance</th>
+                <th>annotations</th>
+                <th>unique answers</th>
+                <th>unanimous</th>
+                <th>majority answer</th>
+              </tr>
+            </thead>
+            <tbody id="instanceAgreement"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Annotators</h2>
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>username</th>
+                <th>registered</th>
+                <th>last seen</th>
+                <th>saved</th>
+                <th>submitted</th>
+                <th>accuracy %</th>
+              </tr>
+            </thead>
+            <tbody id="adminAnnotators"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Data</h2>
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>id</th>
+                <th>occupation</th>
+                <th>participant</th>
+                <th>term set</th>
+                <th>narrator</th>
+                <th>D-level</th>
+                <th>correct</th>
+                <th>target</th>
+              </tr>
+            </thead>
+            <tbody id="adminInstances"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section">
+        <h2>Results</h2>
+        <div class="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>username</th>
+                <th>instance</th>
+                <th>answer</th>
+                <th>correct answer</th>
+                <th>correct</th>
+                <th>submitted</th>
+                <th>reasoning</th>
+              </tr>
+            </thead>
+            <tbody id="adminAnnotations"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    <script src="/static/admin.js"></script>
+  </body>
+</html>

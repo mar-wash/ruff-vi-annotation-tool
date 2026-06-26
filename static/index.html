@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RUFF-VI Annotation</title>
+    <link rel="stylesheet" href="/static/styles.css">
+  </head>
+  <body>
+    <div id="welcomeModal" class="modal hidden" role="dialog" aria-modal="true">
+      <form id="usernameForm" class="panel">
+        <h1>Welcome to RUFF-VI Annotation</h1>
+        <p>Enter your annotator username to begin. New usernames are registered automatically, and returning users pick up where they left off.</p>
+        <label>
+          Username
+          <input id="usernameInput" placeholder="e.g. annotator_01, nguyen_ha, marshall_w" autocomplete="username">
+        </label>
+        <div id="usernameError" class="error" aria-live="polite"></div>
+        <button type="submit">Begin annotation</button>
+      </form>
+    </div>
+
+    <div id="submitModal" class="modal hidden" role="dialog" aria-modal="true">
+      <div class="panel">
+        <h2>Submit your annotations</h2>
+        <p id="submitBody"></p>
+        <div class="actions">
+          <button id="confirmSubmit">Submit completed work</button>
+          <button id="cancelSubmit" class="secondary">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <header class="topbar">
+      <div>
+        <strong>RUFF-VI Annotation</strong>
+        <div id="returningBanner" class="muted"></div>
+      </div>
+      <div class="progressBox">
+        <div id="progressLabel">0 of 0 annotated</div>
+        <div class="segmented" title="">
+          <span id="submittedSegment" class="submitted"></span>
+          <span id="savedSegment" class="saved"></span>
+          <span id="remainingSegment" class="remaining"></span>
+        </div>
+        <div id="progressCounts" class="muted">0 submitted · 0 saved · 0 remaining</div>
+      </div>
+      <nav>
+        <button id="submitButton" class="hidden">Submit annotations</button>
+        <a href="/admin">Admin</a>
+        <a href="/admin/import">Import</a>
+      </nav>
+    </header>
+
+    <main class="workspace">
+      <section id="successBanner" class="success hidden"></section>
+      <section id="newInstancesNotice" class="notice hidden"></section>
+
+      <section id="annotationCard" class="annotation">
+        <div class="meta" id="instanceMeta"></div>
+        <h1 id="introVi">Confirm your username to begin.</h1>
+        <p id="introEn" class="muted"></p>
+        <div id="distractors" class="distractors"></div>
+        <div class="target">
+          <strong id="targetVi"></strong>
+          <span id="targetEn" class="muted"></span>
+        </div>
+        <form id="annotationForm" class="annotationForm">
+          <fieldset>
+            <legend>Answer</legend>
+            <div id="answerOptions" class="terms"></div>
+          </fieldset>
+          <label>
+            Reasoning
+            <textarea id="reasoning" rows="4" placeholder="Briefly explain your choice"></textarea>
+          </label>
+          <div class="actions">
+            <button type="submit">Save annotation</button>
+            <button id="prevInstance" type="button" class="secondary">Previous</button>
+            <button id="nextInstance" type="button" class="secondary">Next</button>
+          </div>
+        </form>
+      </section>
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>

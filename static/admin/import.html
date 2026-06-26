@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Import Instances</title>
+    <link rel="stylesheet" href="/static/styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <strong>Import Instances</strong>
+      <nav>
+        <a href="/">Annotation</a>
+        <a href="/admin">Admin</a>
+      </nav>
+    </header>
+    <main class="workspace">
+      <section class="section">
+        <div class="sectionHeader">
+          <h1>CSV Import</h1>
+          <div class="actions">
+            <button id="lockImport" class="secondary">Lock import</button>
+            <a class="button secondary" href="/api/instances/template">Download CSV template</a>
+          </div>
+        </div>
+        <p class="muted">Researcher use only. CSV uploads require the admin secret.</p>
+        <form id="secretForm" class="notice">
+          <label>
+            Admin secret
+            <input id="adminSecret" type="password" autocomplete="current-password">
+          </label>
+          <button type="submit">Unlock import</button>
+          <div id="secretError" class="error" aria-live="polite"></div>
+        </form>
+        <div id="importTools" class="hidden">
+          <label id="dropZone" class="dropZone">
+            <input id="csvFile" type="file" accept=".csv,text/csv">
+            <span>Drop a CSV here or click to browse</span>
+          </label>
+          <div id="previewArea" class="hidden">
+            <h2>Preview</h2>
+            <div class="tableWrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>occupation</th>
+                    <th>term set</th>
+                    <th>narrator</th>
+                    <th>D-level</th>
+                    <th>intro</th>
+                    <th>correct answer</th>
+                  </tr>
+                </thead>
+                <tbody id="previewRows"></tbody>
+              </table>
+            </div>
+            <div class="actions">
+              <button id="importButton">Import rows</button>
+              <button id="cancelPreview" class="secondary">Cancel</button>
+            </div>
+          </div>
+        </div>
+        <div id="importResult"></div>
+      </section>
+    </main>
+    <script src="/static/import.js"></script>
+  </body>
+</html>
