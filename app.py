@@ -854,7 +854,7 @@ class Handler(SimpleHTTPRequestHandler):
 def main():
     init_db()
     port = int(os.environ["PORT"])
-    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    server = ThreadingHTTPServer(("0.0.0.0", port), Handler)
     print(f"RUFF-VI Annotation running at http://127.0.0.1:{port}")
     server.serve_forever()
 
