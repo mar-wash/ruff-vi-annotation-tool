@@ -61,7 +61,6 @@ function renderInstance() {
   const annotation = annotationsByInstanceId.get(id);
   if (!instance) {
     $("introVi").textContent = counts.total ? "All visible instances are complete." : "No instances loaded.";
-    $("instanceMeta").textContent = "";
     $("distractors").innerHTML = "";
     $("targetVi").textContent = "";
     $("annotationStatus").textContent = "";
@@ -70,7 +69,6 @@ function renderInstance() {
     $("nextInstance").disabled = true;
     return;
   }
-  $("instanceMeta").textContent = `${position + 1} of ${queue.length} · ${instance.occupation} / ${instance.participant_role} · ${instance.term_set} · D${instance.distractor_level}`;
   $("introVi").textContent = instance.intro_vi;
   $("targetVi").textContent = instance.target_vi;
   const distractors = [];
