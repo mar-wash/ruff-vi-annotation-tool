@@ -17,6 +17,8 @@ from urllib.parse import parse_qs, urlparse
 
 ROOT = Path(__file__).parent.resolve()
 STATIC = ROOT / "static"
+SAMPLED_INSTANCES_PATH = ROOT / "Instance-generator" / "sampled_for_humans_vietnamese.tsv"
+SAMPLED_INSTANCE_LIMIT = 25
 
 
 def load_dotenv():
@@ -334,6 +336,7 @@ def init_db():
             """
         )
         sync_canonical_instances(conn)
+        seed_sampled_instances(conn)
 
 
 def seed_instances(conn):
@@ -346,16 +349,40 @@ def canonical_signature():
 
 
 def sync_canonical_instances(conn):
-    existing = [
-        (row["occupation"], row["term_set"], row["narrator_position"], int(row["distractor_level"]), row["intro_vi"])
-        for row in conn.execute("SELECT occupation, term_set, narrator_position, distractor_level, intro_vi FROM instances ORDER BY id")
-    ]
-    if existing == canonical_signature():
+    existing_count = conn.execute("SELECT COUNT(*) FROM instances").fetchone()[0]
+    if existing_count:
         return
-    conn.execute("DELETE FROM annotations")
-    conn.execute("DELETE FROM instances")
-    conn.execute("DELETE FROM sqlite_sequence WHERE name IN ('instances', 'annotations')")
     seed_instances(conn)
+
+
+def sampled_instance_row(source_row):
+    sentences = re.split(r"(?<=[.!?])\s+", source_row["sentence"].strip(), maxsplit=1)
+    human_sentences = re.split(r"(?<=[.!?])\s+", source_row["human_sentence"].strip(), maxsplit=1)
+    if len(sentences) != 2 or len(human_sentences) != 2:
+        raise ValueError(f"Could not split sampled instance {source_row['uid']} into context and target sentences")
+    return {
+        "occupation": source_row["occupation"],
+        "occupation_en": "",
+        "participant_role": source_row["participant"],
+        "participant_role_en": "",
+        "term_set": source_row["pronoun"],
+        "narrator_position": "unspecified",
+        "distractor_level": 0,
+        "intro_vi": sentences[0],
+        "intro_en": "",
+        "target_vi": human_sentences[1],
+        "target_en": "",
+        "correct_answer": source_row["pronoun"],
+    }
+
+
+def seed_sampled_instances(conn):
+    if not SAMPLED_INSTANCES_PATH.exists():
+        return
+    with SAMPLED_INSTANCES_PATH.open(encoding="utf-8", newline="") as source:
+        reader = csv.DictReader(source, delimiter="\t")
+        for row in list(reader)[:SAMPLED_INSTANCE_LIMIT]:
+            insert_instance(conn, sampled_instance_row(row))
 
 
 def row_to_dict(row):
