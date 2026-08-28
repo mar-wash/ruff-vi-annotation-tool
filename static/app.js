@@ -61,11 +61,9 @@ function renderInstance() {
   const annotation = annotationsByInstanceId.get(id);
   if (!instance) {
     $("introVi").textContent = counts.total ? "All visible instances are complete." : "No instances loaded.";
-    $("introEn").textContent = "";
     $("instanceMeta").textContent = "";
     $("distractors").innerHTML = "";
     $("targetVi").textContent = "";
-    $("targetEn").textContent = "";
     $("annotationStatus").textContent = "";
     $("saveButton").disabled = true;
     $("backButton").disabled = true;
@@ -74,14 +72,11 @@ function renderInstance() {
   }
   $("instanceMeta").textContent = `${position + 1} of ${queue.length} · ${instance.occupation} / ${instance.participant_role} · ${instance.term_set} · D${instance.distractor_level}`;
   $("introVi").textContent = instance.intro_vi;
-  $("introEn").textContent = instance.intro_en;
   $("targetVi").textContent = instance.target_vi;
-  $("targetEn").textContent = instance.target_en;
   const distractors = [];
   for (let i = 1; i <= Number(instance.distractor_level); i += 1) {
     const vi = instance[`distractor_${i}_vi`];
-    const en = instance[`distractor_${i}_en`];
-    if (vi) distractors.push(`<div class="distractor"><strong>${vi}</strong><div class="muted">${en || ""}</div></div>`);
+    if (vi) distractors.push(`<div class="distractor"><strong>${vi}</strong></div>`);
   }
   $("distractors").innerHTML = distractors.join("");
   $("annotationForm").reset();

@@ -335,7 +335,7 @@ def init_db():
             );
             """
         )
-        sync_canonical_instances(conn)
+        remove_legacy_instances(conn)
         seed_sampled_instances(conn)
 
 
@@ -348,11 +348,21 @@ def canonical_signature():
     return [(row["occupation"], row["term_set"], row["narrator_position"], int(row["distractor_level"]), row["intro_vi"]) for row in CANONICAL_INSTANCES]
 
 
-def sync_canonical_instances(conn):
-    existing_count = conn.execute("SELECT COUNT(*) FROM instances").fetchone()[0]
-    if existing_count:
+def remove_legacy_instances(conn):
+    legacy_signatures = set(canonical_signature())
+    legacy_ids = [
+        row["id"]
+        for row in conn.execute(
+            "SELECT id, occupation, term_set, narrator_position, distractor_level, intro_vi FROM instances"
+        )
+        if (row["occupation"], row["term_set"], row["narrator_position"], int(row["distractor_level"]), row["intro_vi"])
+        in legacy_signatures
+    ]
+    if not legacy_ids:
         return
-    seed_instances(conn)
+    placeholders = ", ".join("?" for _ in legacy_ids)
+    conn.execute(f"DELETE FROM annotations WHERE instance_id IN ({placeholders})", legacy_ids)
+    conn.execute(f"DELETE FROM instances WHERE id IN ({placeholders})", legacy_ids)
 
 
 def sampled_instance_row(source_row):
