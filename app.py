@@ -412,18 +412,25 @@ def queue_for_user(conn, username):
         raise ValueError("Unknown username")
     conn.execute("UPDATE annotators SET last_seen_at = ? WHERE id = ?", (now_iso(), annotator["id"]))
     all_ids = [r["id"] for r in conn.execute("SELECT id FROM instances ORDER BY id")]
-    completed = [
-        r["instance_id"]
+    annotations = [
+        dict(r)
         for r in conn.execute(
-            "SELECT instance_id FROM annotations WHERE annotator_id = ? ORDER BY updated_at",
+            """
+            SELECT instance_id, answer, reasoning, submitted_at
+            FROM annotations
+            WHERE annotator_id = ?
+            ORDER BY updated_at
+            """,
             (annotator["id"],),
         )
     ]
+    completed = [annotation["instance_id"] for annotation in annotations]
     completed_set = set(completed)
     remaining = [id_ for id_ in all_ids if id_ not in completed_set]
     return {
         "queue": stable_queue(remaining, username),
         "completed": completed,
+        "annotations": annotations,
         "counts": instance_counts(conn, annotator["id"]),
     }
 

@@ -7,6 +7,7 @@ const storage = {
 let username = "";
 let instances = [];
 let instanceById = new Map();
+let annotationsByInstanceId = new Map();
 let queue = [];
 let completed = [];
 let counts = { total: 0, saved: 0, submitted: 0, remaining: 0 };
@@ -57,6 +58,7 @@ function renderTerms() {
 function renderInstance() {
   const id = queue[position];
   const instance = instanceById.get(id);
+  const annotation = annotationsByInstanceId.get(id);
   if (!instance) {
     $("introVi").textContent = counts.total ? "All visible instances are complete." : "No instances loaded.";
     $("introEn").textContent = "";
@@ -64,6 +66,10 @@ function renderInstance() {
     $("distractors").innerHTML = "";
     $("targetVi").textContent = "";
     $("targetEn").textContent = "";
+    $("annotationStatus").textContent = "";
+    $("saveButton").disabled = true;
+    $("backButton").disabled = true;
+    $("nextInstance").disabled = true;
     return;
   }
   $("instanceMeta").textContent = `${position + 1} of ${queue.length} · ${instance.occupation} / ${instance.participant_role} · ${instance.term_set} · D${instance.distractor_level}`;
@@ -79,20 +85,40 @@ function renderInstance() {
   }
   $("distractors").innerHTML = distractors.join("");
   $("annotationForm").reset();
+  if (annotation) {
+    const option = document.querySelector(`input[name="answer"][value="${annotation.answer}"]`);
+    if (option) option.checked = true;
+    $("reasoning").value = annotation.reasoning || "";
+  }
+  const isSubmitted = Boolean(annotation?.submitted_at);
+  $("annotationStatus").textContent = isSubmitted
+    ? "This annotation has been submitted and is locked."
+    : annotation
+      ? "Saved annotation — you can update it before submitting."
+      : "";
+  $("saveButton").textContent = annotation ? "Update annotation" : "Save annotation";
+  $("saveButton").disabled = isSubmitted;
+  document.querySelectorAll("#annotationForm input, #reasoning").forEach((field) => {
+    field.disabled = isSubmitted;
+  });
+  $("backButton").disabled = position === 0;
+  $("nextInstance").disabled = position >= queue.length - 1;
 }
 
 function mergeQueue(serverQueue, serverCompleted) {
   const local = JSON.parse(localStorage.getItem(storage.queue(username)) || "[]");
   const serverSet = new Set([...serverQueue, ...serverCompleted]);
-  const completedSet = new Set(serverCompleted);
-  const kept = local.filter((id) => serverSet.has(id) && !completedSet.has(id));
+  const kept = local.filter((id) => serverSet.has(id));
   const keptSet = new Set(kept);
   const additions = serverQueue.filter((id) => !keptSet.has(id));
+  const completedAdditions = serverCompleted.filter((id) => !keptSet.has(id));
   if (local.length && additions.length) {
     $("newInstancesNotice").textContent = `${additions.length} new instances added since your last session.`;
     show($("newInstancesNotice"), true);
   }
-  const merged = local.length ? [...kept, ...additions, ...serverCompleted] : [...serverQueue, ...serverCompleted];
+  const merged = local.length
+    ? [...kept, ...additions, ...completedAdditions]
+    : [...serverQueue, ...serverCompleted];
   localStorage.setItem(storage.queue(username), JSON.stringify(merged));
   return merged;
 }
@@ -104,6 +130,9 @@ async function loadForUser() {
   ]);
   instances = instanceData.instances;
   instanceById = new Map(instances.map((item) => [item.id, item]));
+  annotationsByInstanceId = new Map(
+    (queueData.annotations || []).map((annotation) => [annotation.instance_id, annotation]),
+  );
   completed = queueData.completed;
   counts = queueData.counts;
   queue = mergeQueue(queueData.queue, queueData.completed);
@@ -152,6 +181,7 @@ async function saveAnnotation(event) {
   });
   counts = result.counts;
   completed = [...new Set([...completed, instance.id])];
+  annotationsByInstanceId.set(instance.id, { answer, reasoning, submitted_at: null });
   setProgress();
   position = Math.min(position + 1, Math.max(queue.length - 1, 0));
   localStorage.setItem(`${storage.queue(username)}_position`, String(position));
@@ -171,7 +201,11 @@ async function confirmSubmit() {
     body: JSON.stringify({ username }),
   });
   counts = result.counts;
+  for (const annotation of annotationsByInstanceId.values()) {
+    annotation.submitted_at = annotation.submitted_at || new Date().toISOString();
+  }
   setProgress();
+  renderInstance();
   show($("submitModal"), false);
   $("successBanner").textContent = `✓ ${result.submitted_count} annotations submitted. Thank you, ${username}!`;
   show($("successBanner"), true);
@@ -183,7 +217,7 @@ $("annotationForm").addEventListener("submit", saveAnnotation);
 $("submitButton").addEventListener("click", submitAnnotations);
 $("confirmSubmit").addEventListener("click", confirmSubmit);
 $("cancelSubmit").addEventListener("click", () => show($("submitModal"), false));
-$("prevInstance").addEventListener("click", () => {
+$("backButton").addEventListener("click", () => {
   position = Math.max(0, position - 1);
   localStorage.setItem(`${storage.queue(username)}_position`, String(position));
   renderInstance();
