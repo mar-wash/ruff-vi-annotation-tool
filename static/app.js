@@ -99,21 +99,10 @@ function renderInstance() {
 }
 
 function mergeQueue(serverQueue, serverCompleted) {
-  const local = JSON.parse(localStorage.getItem(storage.queue(username)) || "[]");
-  const serverSet = new Set([...serverQueue, ...serverCompleted]);
-  const kept = local.filter((id) => serverSet.has(id));
-  const keptSet = new Set(kept);
-  const additions = serverQueue.filter((id) => !keptSet.has(id));
-  const completedAdditions = serverCompleted.filter((id) => !keptSet.has(id));
-  if (local.length && additions.length) {
-    $("newInstancesNotice").textContent = `${additions.length} new instances added since your last session.`;
-    show($("newInstancesNotice"), true);
-  }
-  const merged = local.length
-    ? [...kept, ...additions, ...completedAdditions]
-    : [...serverQueue, ...serverCompleted];
-  localStorage.setItem(storage.queue(username), JSON.stringify(merged));
-  return merged;
+  // The server order is shared across annotators; stale local queues must not reorder it.
+  const orderedQueue = [...serverQueue];
+  localStorage.setItem(storage.queue(username), JSON.stringify(orderedQueue));
+  return orderedQueue;
 }
 
 async function loadForUser() {
@@ -129,7 +118,7 @@ async function loadForUser() {
   completed = queueData.completed;
   counts = queueData.counts;
   queue = mergeQueue(queueData.queue, queueData.completed);
-  position = Math.min(Number(localStorage.getItem(`${storage.queue(username)}_position`) || 0), Math.max(queue.length - 1, 0));
+  position = 0;
   $("returningBanner").textContent = `Welcome back, ${username}. You have ${counts.remaining} instances remaining.`;
   setProgress();
   renderInstance();

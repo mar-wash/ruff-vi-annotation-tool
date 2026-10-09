@@ -40,6 +40,7 @@ Authorization: Bearer <ADMIN_SECRET>
 
 - Deploy to Railway or Render. A free tier is sufficient for small annotation rounds.
 - Set the environment variables in the platform dashboard.
+- Finalize each round's instance set before annotation starts. All annotators share the same randomized order. In the admin view, create a named round, import its CSV from `/admin/import`, then use **Round exports** to download its annotation records or disagreement-only CSV. A round's imports lock after its first annotation.
 - Share the public annotation URL with annotators.
 - Keep the `ADMIN_SECRET` private; only researchers should use `/admin` and `/admin/import`.
 
@@ -77,6 +78,8 @@ Rules:
 - `POST /api/annotators/register` `{ "username": "..." }`
 - `GET /api/instances/queue?username=X`
 - `GET /api/instances`
+- `GET /api/admin/round-export?round_id=X&type=annotations|disagreements` with the admin secret
+- `POST /api/rounds` with the admin secret to create a named round
 - `POST /api/annotations`
 - `POST /api/annotations/submit` `{ "username": "..." }`
 - `GET /api/admin` with `Authorization: Bearer <ADMIN_SECRET>`
