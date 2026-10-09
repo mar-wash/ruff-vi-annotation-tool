@@ -66,8 +66,7 @@ async function submitRows(replaceExisting = false) {
   }
   const secret = sessionStorage.getItem(secretStorage) || "";
   if (!secret) {
-    $("importResult").innerHTML = `<div class="notice">Enter the admin secret before importing.</div>`;
-    showImportGate(true);
+    window.location.assign("/admin?returnTo=%2Fimport");
     return;
   }
   const form = new FormData();
@@ -79,8 +78,7 @@ async function submitRows(replaceExisting = false) {
   });
   if (response.status === 401) {
     sessionStorage.removeItem(secretStorage);
-    showImportGate(true);
-    $("secretError").textContent = "Admin access expired. Enter the admin secret again.";
+    window.location.assign("/admin?returnTo=%2Fimport");
     return;
   }
   const result = await response.json();
@@ -102,11 +100,6 @@ function replaceRows() {
   return submitRows(true);
 }
 
-function showImportGate(show) {
-  $("importGate").classList.toggle("hidden", !show);
-  $("importTools").classList.toggle("hidden", show);
-}
-
 async function validateAdminSecret(secret) {
   const response = await fetch("/api/admin/auth", {
     headers: { Authorization: `Bearer ${secret}` },
@@ -114,29 +107,9 @@ async function validateAdminSecret(secret) {
   return response.ok;
 }
 
-async function unlockImport(event) {
-  event.preventDefault();
-  const secret = $("adminSecret").value.trim();
-  if (!secret) {
-    $("secretError").textContent = "Enter the admin secret.";
-    return;
-  }
-  $("secretError").textContent = "Checking admin access…";
-  if (!(await validateAdminSecret(secret))) {
-    sessionStorage.removeItem(secretStorage);
-    $("secretError").textContent = "That admin secret was not accepted.";
-    return;
-  }
-  sessionStorage.setItem(secretStorage, secret);
-  $("secretError").textContent = "";
-  showImportGate(false);
-}
-
-$("secretForm").addEventListener("submit", unlockImport);
 $("lockImport").addEventListener("click", () => {
   sessionStorage.removeItem(secretStorage);
-  $("adminSecret").value = "";
-  showImportGate(true);
+  window.location.assign("/admin");
 });
 $("csvFile").addEventListener("change", (event) => chooseFile(event.target.files[0]));
 $("dropZone").addEventListener("dragover", (event) => {
@@ -159,12 +132,12 @@ const savedSecret = sessionStorage.getItem(secretStorage) || "";
 if (savedSecret) {
   validateAdminSecret(savedSecret).then((authorized) => {
     if (authorized) {
-      showImportGate(false);
+      $("importTools").classList.remove("hidden");
     } else {
       sessionStorage.removeItem(secretStorage);
-      showImportGate(true);
+      window.location.assign("/admin?returnTo=%2Fimport");
     }
-  }).catch(() => showImportGate(true));
+  }).catch(() => window.location.assign("/admin?returnTo=%2Fimport"));
 } else {
-  showImportGate(true);
+  window.location.assign("/admin?returnTo=%2Fimport");
 }

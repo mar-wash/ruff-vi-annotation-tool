@@ -152,6 +152,10 @@ $("adminForm").addEventListener("submit", async (event) => {
   sessionStorage.setItem(keyStorage, $("adminKey").value.trim());
   $("adminError").textContent = "Checking admin access…";
   await load();
+  if (!$("adminGate").classList.contains("hidden")) return;
+  if (new URLSearchParams(window.location.search).get("returnTo") === "/import") {
+    window.location.assign("/import");
+  }
 });
 
 $("refreshAdmin").addEventListener("click", load);

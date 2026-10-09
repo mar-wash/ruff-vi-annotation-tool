@@ -19,19 +19,11 @@
         <div class="sectionHeader">
           <h1>CSV Import</h1>
           <div class="actions">
-            <button id="lockImport" class="secondary">Lock import</button>
+            <button id="lockImport" class="secondary">Lock admin</button>
             <a class="button secondary" href="/api/instances/template">Download CSV template</a>
           </div>
         </div>
-        <p class="muted">Researcher use only. CSV uploads require the admin secret.</p>
-        <form id="secretForm" class="notice">
-          <label>
-            Admin secret
-            <input id="adminSecret" type="password" autocomplete="current-password">
-          </label>
-          <button type="submit">Unlock import</button>
-          <div id="secretError" class="error" aria-live="polite"></div>
-        </form>
+        <p class="muted">Researcher use only. Sign in through the admin view to import instances.</p>
         <div id="importTools" class="hidden">
           <label id="dropZone" class="dropZone">
             <input id="csvFile" type="file" accept=".csv,text/csv">
