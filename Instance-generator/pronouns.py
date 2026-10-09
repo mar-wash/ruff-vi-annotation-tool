@@ -1,4 +1,4 @@
-TERMS = ["anh", "chị", "cô", "chú", "ông", "bà", "em", "nó", "hắn", "chanh"]
+TERMS = ["anh", "chị", "cô", "chú", "ông", "bà", "em", "chanh"]
 
 mapping = {
     "$PRONOUN": TERMS,
