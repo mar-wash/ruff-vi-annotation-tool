@@ -812,8 +812,13 @@ class Handler(SimpleHTTPRequestHandler):
                 self.send_header("Location", "/admin")
                 self.end_headers()
                 return
-            if path in {"/", "/admin", "/admin/import"}:
-                filename = "index.html" if path == "/" else path.strip("/") + ".html"
+            if path in {"/", "/admin", "/admin/import", "/import"}:
+                if path == "/":
+                    filename = "index.html"
+                elif path == "/import":
+                    filename = "admin/import.html"
+                else:
+                    filename = path.strip("/") + ".html"
                 self.serve_file(STATIC / filename)
                 return
             if path.startswith("/static/"):

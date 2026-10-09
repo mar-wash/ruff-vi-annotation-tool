@@ -25,7 +25,7 @@ The app checks these variables on startup. If any are missing, it logs a clear e
 
 ## Loading New Instances
 
-1. Go to `/admin/import`.
+1. Go to `/import` (the importer is a standalone page; you do not need to open the admin dashboard).
 2. Enter your `ADMIN_SECRET`.
 3. Download the CSV template or prepare a CSV with the documented headers.
 4. Upload the CSV and confirm the preview.
@@ -44,7 +44,7 @@ Authorization: Bearer <ADMIN_SECRET>
 - Set the environment variables in the platform dashboard.
 - All annotators share the same randomized order. The admin view includes inter-annotator agreement metrics and a CSV export of annotation records.
 - Share the public annotation URL with annotators.
-- Keep the `ADMIN_SECRET` private; only researchers should use `/admin` and `/admin/import`.
+- Keep the `ADMIN_SECRET` private; only researchers should use `/admin` and `/import`.
 
 ## Data
 
