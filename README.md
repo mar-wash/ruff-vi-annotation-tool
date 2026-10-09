@@ -25,7 +25,7 @@ The app checks these variables on startup. If any are missing, it logs a clear e
 
 ## Loading New Instances
 
-1. Go to `/import`. The importer is a standalone page, but access uses the single admin-view login. If needed, the site sends you to admin login and returns you to the importer afterward.
+1. Open `/admin`, sign in, then choose **Import instances**. Direct visits to `/import` redirect to the admin login when needed.
 2. Enter your `ADMIN_SECRET`.
 3. Download the CSV template or prepare a CSV with the documented headers.
 4. Upload the CSV and confirm the preview.
