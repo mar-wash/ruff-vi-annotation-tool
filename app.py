@@ -906,13 +906,15 @@ class Handler(SimpleHTTPRequestHandler):
                     )
                     json_response(self, {"submitted_count": cur.rowcount, "counts": instance_counts(conn, annotator["id"])})
                 return
-            if path == "/api/instances/import":
+            if path in {"/api/instances/import", "/api/instances/replace"}:
                 if not require_admin(self):
                     return
                 text = parse_multipart_csv(self)
                 reader = csv.DictReader(io.StringIO(text))
                 rows = list(reader)
                 errors = []
+                if not rows:
+                    errors.append({"row": 2, "field": "file", "message": "CSV must contain at least one instance"})
                 for index, row in enumerate(rows, start=2):
                     errors.extend(validate_csv_row(row, index))
                 if errors:
@@ -920,7 +922,15 @@ class Handler(SimpleHTTPRequestHandler):
                     return
                 inserted = 0
                 skipped = 0
+                removed_instances = 0
+                removed_annotations = 0
+                replace_existing = path == "/api/instances/replace"
                 with connect() as conn:
+                    if replace_existing:
+                        removed_instances = conn.execute("SELECT COUNT(*) FROM instances").fetchone()[0]
+                        removed_annotations = conn.execute("SELECT COUNT(*) FROM annotations").fetchone()[0]
+                        conn.execute("DELETE FROM annotations")
+                        conn.execute("DELETE FROM instances")
                     for row in rows:
                         for level in range(int(row["distractor_level"]) + 1, 6):
                             row[f"distractor_{level}_vi"] = ""
@@ -929,7 +939,13 @@ class Handler(SimpleHTTPRequestHandler):
                             inserted += 1
                         else:
                             skipped += 1
-                json_response(self, {"inserted": inserted, "skipped_duplicates": skipped, "errors": []})
+                json_response(self, {
+                    "inserted": inserted,
+                    "skipped_duplicates": skipped,
+                    "removed_instances": removed_instances,
+                    "removed_annotations": removed_annotations,
+                    "errors": [],
+                })
                 return
             self.send_error(HTTPStatus.NOT_FOUND)
         except Exception as exc:

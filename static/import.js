@@ -56,7 +56,14 @@ async function chooseFile(file) {
   renderPreview();
 }
 
-async function importRows() {
+async function submitRows(replaceExisting = false) {
+  if (!selectedFile || !parsedRows.length) {
+    $("importResult").innerHTML = `<div class="notice">Choose a CSV file with at least one instance.</div>`;
+    return;
+  }
+  if (replaceExisting && !window.confirm(`Replace the current instance set with these ${parsedRows.length} rows? This permanently deletes all existing instances and their annotations.`)) {
+    return;
+  }
   const secret = localStorage.getItem(secretStorage) || "";
   if (!secret) {
     $("importResult").innerHTML = `<div class="notice">Enter the admin secret before importing.</div>`;
@@ -65,7 +72,7 @@ async function importRows() {
   }
   const form = new FormData();
   form.append("file", selectedFile);
-  const response = await fetch("/api/instances/import", {
+  const response = await fetch(replaceExisting ? "/api/instances/replace" : "/api/instances/import", {
     method: "POST",
     headers: { Authorization: `Bearer ${secret}` },
     body: form,
@@ -75,10 +82,18 @@ async function importRows() {
   const errors = result.errors || [];
   $("importResult").innerHTML = `
     <div class="${ok ? "success" : "notice"}">
-      ${ok ? "✓" : "Import failed:"} ${result.inserted || 0} instances imported · ${result.skipped_duplicates || 0} duplicates skipped · ${errors.length} errors
+      ${ok ? "✓" : "Import failed:"} ${replaceExisting && ok ? `${result.removed_instances} old instances and ${result.removed_annotations} annotations removed · ` : ""}${result.inserted || 0} instances imported · ${result.skipped_duplicates || 0} duplicates skipped · ${errors.length} errors
     </div>
     ${errors.length ? `<details open><summary>Errors</summary><ul>${errors.map((error) => `<li>Row ${error.row} — ${error.field}: ${error.message}</li>`).join("")}</ul></details>` : ""}
   `;
+}
+
+function importRows() {
+  return submitRows(false);
+}
+
+function replaceRows() {
+  return submitRows(true);
 }
 
 function showImportGate(show) {
@@ -114,6 +129,7 @@ $("dropZone").addEventListener("drop", (event) => {
   chooseFile(event.dataTransfer.files[0]);
 });
 $("importButton").addEventListener("click", importRows);
+$("replaceButton").addEventListener("click", replaceRows);
 $("cancelPreview").addEventListener("click", () => {
   selectedFile = null;
   parsedRows = [];
