@@ -58,7 +58,6 @@ CSV_HEADERS = [
     "participant_role",
     "participant_role_en",
     "term_set",
-    "narrator_position",
     "distractor_level",
     "intro_vi",
     "intro_en",
@@ -535,6 +534,7 @@ def validate_username(username):
 
 def insert_instance(conn, row):
     values = {header: row.get(header, "") for header in CSV_HEADERS}
+    values["narrator_position"] = row.get("narrator_position") or "unspecified"
     values["distractor_level"] = int(values["distractor_level"])
     values["created_at"] = now_iso()
     placeholders = ", ".join("?" for _ in values)
@@ -555,7 +555,6 @@ def validate_csv_row(row, row_number):
         "participant_role",
         "participant_role_en",
         "term_set",
-        "narrator_position",
         "distractor_level",
         "intro_vi",
         "intro_en",
@@ -798,7 +797,7 @@ class Handler(SimpleHTTPRequestHandler):
                 body = io.StringIO()
                 writer = csv.DictWriter(body, fieldnames=CSV_HEADERS)
                 writer.writeheader()
-                writer.writerow(CANONICAL_INSTANCES[0])
+                writer.writerow({header: CANONICAL_INSTANCES[0].get(header, "") for header in CSV_HEADERS})
                 data = body.getvalue().encode("utf-8-sig")
                 self.send_response(HTTPStatus.OK)
                 self.send_header("Content-Type", "text/csv; charset=utf-8")

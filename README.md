@@ -30,7 +30,7 @@ The app checks these variables on startup. If any are missing, it logs a clear e
 3. Download the CSV template or prepare a CSV with the documented headers.
 4. Upload the CSV and confirm the preview.
 
-The import page supports both additive imports and **Replace current set**. Replacement validates the CSV before deleting anything, then removes all current instances and their saved annotations before loading the new set. Annotator accounts remain. Export annotations first if you need to keep a copy.
+The import page supports both additive imports and **Replace current set**. Replacement validates the CSV before deleting anything, then removes all current instances and their saved annotations before loading the new set. Annotator accounts remain. Export annotations first if you need to keep a copy. Upload CSVs do not need a `narrator_position` column; imports set it internally to `unspecified`.
 
 CSV upload requests must include:
 
@@ -63,7 +63,7 @@ To back up annotations, open `/admin`, enter `ADMIN_SECRET`, and use the **Expor
 The canonical import format uses these exact headers:
 
 ```text
-occupation,occupation_en,participant_role,participant_role_en,term_set,narrator_position,distractor_level,intro_vi,intro_en,distractor_1_vi,distractor_1_en,distractor_2_vi,distractor_2_en,distractor_3_vi,distractor_3_en,distractor_4_vi,distractor_4_en,distractor_5_vi,distractor_5_en,target_vi,target_en,correct_answer
+occupation,occupation_en,participant_role,participant_role_en,term_set,distractor_level,intro_vi,intro_en,distractor_1_vi,distractor_1_en,distractor_2_vi,distractor_2_en,distractor_3_vi,distractor_3_en,distractor_4_vi,distractor_4_en,distractor_5_vi,distractor_5_en,target_vi,target_en,correct_answer
 ```
 
 Rules:

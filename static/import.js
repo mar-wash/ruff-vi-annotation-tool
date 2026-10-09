@@ -40,7 +40,6 @@ function renderPreview() {
     <tr>
       <td>${row.occupation || ""}</td>
       <td>${row.term_set || ""}</td>
-      <td>${row.narrator_position || ""}</td>
       <td>${row.distractor_level || ""}</td>
       <td>${(row.intro_vi || "").slice(0, 90)}</td>
       <td>${row.correct_answer || ""}</td>
