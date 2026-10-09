@@ -64,7 +64,7 @@ async function submitRows(replaceExisting = false) {
   if (replaceExisting && !window.confirm(`Replace the current instance set with these ${parsedRows.length} rows? This permanently deletes all existing instances and their annotations.`)) {
     return;
   }
-  const secret = localStorage.getItem(secretStorage) || "";
+  const secret = sessionStorage.getItem(secretStorage) || "";
   if (!secret) {
     $("importResult").innerHTML = `<div class="notice">Enter the admin secret before importing.</div>`;
     showImportGate(true);
@@ -77,6 +77,12 @@ async function submitRows(replaceExisting = false) {
     headers: { Authorization: `Bearer ${secret}` },
     body: form,
   });
+  if (response.status === 401) {
+    sessionStorage.removeItem(secretStorage);
+    showImportGate(true);
+    $("secretError").textContent = "Admin access expired. Enter the admin secret again.";
+    return;
+  }
   const result = await response.json();
   const ok = response.ok;
   const errors = result.errors || [];
@@ -101,21 +107,34 @@ function showImportGate(show) {
   $("importTools").classList.toggle("hidden", show);
 }
 
-function unlockImport(event) {
+async function validateAdminSecret(secret) {
+  const response = await fetch("/api/admin/auth", {
+    headers: { Authorization: `Bearer ${secret}` },
+  });
+  return response.ok;
+}
+
+async function unlockImport(event) {
   event.preventDefault();
   const secret = $("adminSecret").value.trim();
   if (!secret) {
     $("secretError").textContent = "Enter the admin secret.";
     return;
   }
-  localStorage.setItem(secretStorage, secret);
+  $("secretError").textContent = "Checking admin access…";
+  if (!(await validateAdminSecret(secret))) {
+    sessionStorage.removeItem(secretStorage);
+    $("secretError").textContent = "That admin secret was not accepted.";
+    return;
+  }
+  sessionStorage.setItem(secretStorage, secret);
   $("secretError").textContent = "";
   showImportGate(false);
 }
 
 $("secretForm").addEventListener("submit", unlockImport);
 $("lockImport").addEventListener("click", () => {
-  localStorage.removeItem(secretStorage);
+  sessionStorage.removeItem(secretStorage);
   $("adminSecret").value = "";
   showImportGate(true);
 });
@@ -136,8 +155,16 @@ $("cancelPreview").addEventListener("click", () => {
   $("previewArea").classList.add("hidden");
 });
 
-if (localStorage.getItem(secretStorage)) {
-  showImportGate(false);
+const savedSecret = sessionStorage.getItem(secretStorage) || "";
+if (savedSecret) {
+  validateAdminSecret(savedSecret).then((authorized) => {
+    if (authorized) {
+      showImportGate(false);
+    } else {
+      sessionStorage.removeItem(secretStorage);
+      showImportGate(true);
+    }
+  }).catch(() => showImportGate(true));
 } else {
   showImportGate(true);
 }

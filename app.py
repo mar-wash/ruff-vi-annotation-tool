@@ -783,6 +783,11 @@ class Handler(SimpleHTTPRequestHandler):
                 with connect() as conn:
                     json_response(self, admin_payload(conn))
                 return
+            if path == "/api/admin/auth":
+                if not require_admin(self, query):
+                    return
+                json_response(self, {"authorized": True})
+                return
             if path == "/api/agreement":
                 if not require_admin(self, query):
                     return

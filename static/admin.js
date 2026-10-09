@@ -12,7 +12,7 @@ function pct(value) {
 }
 
 async function fetchAdmin() {
-  const key = localStorage.getItem(keyStorage) || "";
+  const key = sessionStorage.getItem(keyStorage) || "";
   const response = await fetch("/api/admin", {
     headers: { Authorization: `Bearer ${key}` },
   });
@@ -141,6 +141,7 @@ async function load() {
     render(await fetchAdmin());
     showGate(false);
   } catch (error) {
+    sessionStorage.removeItem(keyStorage);
     $("adminError").textContent = error.message;
     showGate(true);
   }
@@ -148,20 +149,18 @@ async function load() {
 
 $("adminForm").addEventListener("submit", async (event) => {
   event.preventDefault();
-  localStorage.setItem(keyStorage, $("adminKey").value.trim());
+  sessionStorage.setItem(keyStorage, $("adminKey").value.trim());
+  $("adminError").textContent = "Checking admin access…";
   await load();
 });
 
 $("refreshAdmin").addEventListener("click", load);
 $("exportCsv").addEventListener("click", exportCsv);
 $("lockAdmin").addEventListener("click", () => {
-  localStorage.removeItem(keyStorage);
+  sessionStorage.removeItem(keyStorage);
   $("adminKey").value = "";
+  $("adminError").textContent = "";
   showGate(true);
 });
 
-if (localStorage.getItem(keyStorage)) {
-  load();
-} else {
-  showGate(true);
-}
+showGate(true);
