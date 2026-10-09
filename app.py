@@ -290,15 +290,8 @@ def init_db():
               last_seen_at TEXT NOT NULL
             );
 
-            CREATE TABLE IF NOT EXISTS rounds (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              name TEXT NOT NULL UNIQUE,
-              created_at TEXT NOT NULL
-            );
-
             CREATE TABLE IF NOT EXISTS instances (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
-              round_id INTEGER,
               occupation TEXT NOT NULL,
               occupation_en TEXT NOT NULL,
               participant_role TEXT NOT NULL,
@@ -322,7 +315,7 @@ def init_db():
               target_en TEXT NOT NULL,
               correct_answer TEXT NOT NULL,
               created_at TEXT NOT NULL,
-              UNIQUE (occupation, term_set, narrator_position, distractor_level, intro_vi)
+              UNIQUE (occupation, participant_role, term_set, narrator_position, distractor_level, intro_vi, target_vi)
             );
 
             CREATE TABLE IF NOT EXISTS annotations (
@@ -342,14 +335,61 @@ def init_db():
             );
             """
         )
-        instance_columns = {row["name"] for row in conn.execute("PRAGMA table_info(instances)")}
-        if "round_id" not in instance_columns:
-            conn.execute("ALTER TABLE instances ADD COLUMN round_id INTEGER")
-        conn.execute("INSERT OR IGNORE INTO rounds (name, created_at) VALUES (?, ?)", ("Round 1", now_iso()))
-        default_round_id = conn.execute("SELECT id FROM rounds ORDER BY id LIMIT 1").fetchone()["id"]
-        conn.execute("UPDATE instances SET round_id = ? WHERE round_id IS NULL", (default_round_id,))
+        conn.commit()
+        migrate_instance_identity(conn)
         remove_legacy_instances(conn)
         seed_sampled_instances(conn)
+
+
+def migrate_instance_identity(conn):
+    schema = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'instances'"
+    ).fetchone()["sql"]
+    old_key = "UNIQUE (occupation, term_set, narrator_position, distractor_level, intro_vi)"
+    if old_key not in schema:
+        return
+
+    columns = [row["name"] for row in conn.execute("PRAGMA table_info(instances)") if row["name"] != "round_id"]
+    quoted_columns = ", ".join(f'"{column}"' for column in columns)
+    conn.execute("PRAGMA foreign_keys = OFF")
+    conn.execute(
+        """
+        CREATE TABLE instances_rebuilt (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          occupation TEXT NOT NULL,
+          occupation_en TEXT NOT NULL,
+          participant_role TEXT NOT NULL,
+          participant_role_en TEXT NOT NULL,
+          term_set TEXT NOT NULL,
+          narrator_position TEXT NOT NULL,
+          distractor_level INTEGER NOT NULL,
+          intro_vi TEXT NOT NULL,
+          intro_en TEXT NOT NULL,
+          distractor_1_vi TEXT,
+          distractor_1_en TEXT,
+          distractor_2_vi TEXT,
+          distractor_2_en TEXT,
+          distractor_3_vi TEXT,
+          distractor_3_en TEXT,
+          distractor_4_vi TEXT,
+          distractor_4_en TEXT,
+          distractor_5_vi TEXT,
+          distractor_5_en TEXT,
+          target_vi TEXT NOT NULL,
+          target_en TEXT NOT NULL,
+          correct_answer TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          UNIQUE (occupation, participant_role, term_set, narrator_position, distractor_level, intro_vi, target_vi)
+        )
+        """
+    )
+    conn.execute(
+        f"INSERT INTO instances_rebuilt ({quoted_columns}) SELECT {quoted_columns} FROM instances"
+    )
+    conn.execute("DROP TABLE instances")
+    conn.execute("ALTER TABLE instances_rebuilt RENAME TO instances")
+    conn.commit()
+    conn.execute("PRAGMA foreign_keys = ON")
 
 
 def seed_instances(conn):
@@ -402,15 +442,13 @@ def sampled_instance_row(source_row):
 def seed_sampled_instances(conn):
     if not SAMPLED_INSTANCES_PATH.exists():
         return
-    # Treat the initial seed as one fixed annotation round. Do not add rows on
-    # later restarts, which could silently change the set mid-study.
+    # Seed a bounded starting sample only for an empty database.
     if conn.execute("SELECT 1 FROM instances LIMIT 1").fetchone():
         return
-    round_id = conn.execute("SELECT id FROM rounds ORDER BY id LIMIT 1").fetchone()["id"]
     with SAMPLED_INSTANCES_PATH.open(encoding="utf-8", newline="") as source:
         reader = csv.DictReader(source, delimiter="\t")
         for row in list(reader)[:SAMPLED_INSTANCE_LIMIT]:
-            insert_instance(conn, sampled_instance_row(row), round_id)
+            insert_instance(conn, sampled_instance_row(row))
 
 
 def row_to_dict(row):
@@ -495,12 +533,9 @@ def validate_username(username):
     return isinstance(username, str) and USERNAME_RE.match(username)
 
 
-def insert_instance(conn, row, round_id=None):
+def insert_instance(conn, row):
     values = {header: row.get(header, "") for header in CSV_HEADERS}
     values["distractor_level"] = int(values["distractor_level"])
-    if round_id is None:
-        round_id = conn.execute("SELECT id FROM rounds ORDER BY id DESC LIMIT 1").fetchone()["id"]
-    values["round_id"] = round_id
     values["created_at"] = now_iso()
     placeholders = ", ".join("?" for _ in values)
     columns = ", ".join(values.keys())
@@ -603,25 +638,21 @@ def annotator_rows(conn):
     ]
 
 
-def annotation_rows(conn, username="", round_id=None):
+def annotation_rows(conn, username=""):
     params = []
     conditions = []
     if username:
         conditions.append("a.username = ?")
         params.append(username)
-    if round_id is not None:
-        conditions.append("i.round_id = ?")
-        params.append(round_id)
     where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
     return [
         dict(r)
         for r in conn.execute(
             f"""
-            SELECT a.*, i.round_id, r.name AS round_name, i.correct_answer, i.occupation, i.participant_role,
+            SELECT a.*, i.correct_answer, i.occupation, i.participant_role,
                    i.term_set, i.distractor_level, i.target_vi
             FROM annotations a
             JOIN instances i ON i.id = a.instance_id
-            JOIN rounds r ON r.id = i.round_id
             {where}
             ORDER BY a.updated_at DESC
             """,
@@ -646,8 +677,8 @@ def cohen_kappa(answers_a, answers_b):
     return (observed - expected) / (1 - expected)
 
 
-def agreement_summary(conn, round_id=None):
-    rows = annotation_rows(conn, round_id=round_id)
+def agreement_summary(conn):
+    rows = annotation_rows(conn)
     by_user = {}
     by_instance = {}
     for row in rows:
@@ -707,47 +738,11 @@ def agreement_summary(conn, round_id=None):
 
 def admin_payload(conn):
     return {
-        "rounds": [dict(r) for r in conn.execute("SELECT * FROM rounds ORDER BY id")],
         "instances": [dict(r) for r in conn.execute("SELECT * FROM instances ORDER BY id")],
         "annotators": annotator_rows(conn),
         "annotations": annotation_rows(conn),
         "agreement": agreement_summary(conn),
-    }
-
-
-def round_export_csv(rows, headers):
-    output = io.StringIO(newline="")
-    writer = csv.DictWriter(output, fieldnames=headers, extrasaction="ignore")
-    writer.writeheader()
-    writer.writerows(rows)
-    return output.getvalue().encode("utf-8-sig")
-
-
-def disagreement_rows(rows):
-    grouped = {}
-    for row in rows:
-        grouped.setdefault(row["instance_id"], []).append(row)
-    disagreements = []
-    for instance_id, annotations in sorted(grouped.items()):
-        answers = {row["answer"] for row in annotations}
-        if len(answers) < 2:
-            continue
-        counts = {answer: sum(row["answer"] == answer for row in annotations) for answer in answers}
-        disagreements.append(
-            {
-                "round_id": annotations[0]["round_id"],
-                "round_name": annotations[0]["round_name"],
-                "instance_id": instance_id,
-                "occupation": annotations[0]["occupation"],
-                "target_vi": annotations[0]["target_vi"],
-                "annotation_count": len(annotations),
-                "answers": " | ".join(f"{row['username']}: {row['answer']}" for row in annotations),
-                "reasoning": " | ".join(f"{row['username']}: {row['reasoning'] or ''}" for row in annotations),
-                "majority_answer": max(counts, key=counts.get),
-                "majority_count": max(counts.values()),
-            }
-        )
-    return disagreements
+}
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -768,47 +763,6 @@ class Handler(SimpleHTTPRequestHandler):
                 with connect() as conn:
                     rows = [dict(r) for r in conn.execute("SELECT * FROM instances ORDER BY id")]
                     json_response(self, {"instances": rows})
-                return
-            if path == "/api/rounds":
-                if not require_admin(self, query):
-                    return
-                with connect() as conn:
-                    rows = [dict(r) for r in conn.execute("SELECT * FROM rounds ORDER BY id")]
-                    json_response(self, {"rounds": rows})
-                return
-            if path == "/api/admin/round-export":
-                if not require_admin(self, query):
-                    return
-                try:
-                    round_id = int(query.get("round_id", [""])[0])
-                except ValueError:
-                    error_response(self, "Choose a valid round")
-                    return
-                export_type = query.get("type", [""])[0]
-                with connect() as conn:
-                    round_row = conn.execute("SELECT name FROM rounds WHERE id = ?", (round_id,)).fetchone()
-                    if not round_row:
-                        error_response(self, "Unknown round")
-                        return
-                    rows = annotation_rows(conn, round_id=round_id)
-                if export_type == "annotations":
-                    headers = ["round_id", "round_name", "username", "instance_id", "occupation", "participant_role", "term_set", "distractor_level", "target_vi", "answer", "correct_answer", "is_correct", "reasoning", "created_at", "updated_at", "submitted_at"]
-                    filename = f"ruffvi_round_{round_id}_annotations.csv"
-                    body = round_export_csv(rows, headers)
-                elif export_type == "disagreements":
-                    disagreements = disagreement_rows(rows)
-                    headers = ["round_id", "round_name", "instance_id", "occupation", "target_vi", "annotation_count", "answers", "reasoning", "majority_answer", "majority_count"]
-                    filename = f"ruffvi_round_{round_id}_disagreements.csv"
-                    body = round_export_csv(disagreements, headers)
-                else:
-                    error_response(self, "Unknown export type")
-                    return
-                self.send_response(HTTPStatus.OK)
-                self.send_header("Content-Type", "text/csv; charset=utf-8")
-                self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
-                self.send_header("Content-Length", str(len(body)))
-                self.end_headers()
-                self.wfile.write(body)
                 return
             if path == "/api/annotations":
                 if not require_admin(self, query):
@@ -863,8 +817,6 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_error(HTTPStatus.NOT_FOUND)
         except ValueError as exc:
             error_response(self, str(exc), HTTPStatus.BAD_REQUEST)
-        except ValueError as exc:
-            error_response(self, str(exc), HTTPStatus.BAD_REQUEST)
         except Exception as exc:
             error_response(self, str(exc), HTTPStatus.INTERNAL_SERVER_ERROR)
 
@@ -899,24 +851,6 @@ class Handler(SimpleHTTPRequestHandler):
                         return
                     annotator = row_to_dict(get_annotator(conn, username))
                     json_response(self, annotator, HTTPStatus.CREATED)
-                return
-            if path == "/api/rounds":
-                if not require_admin(self):
-                    return
-                name = str(read_json(self).get("name", "")).strip()
-                if not name or len(name) > 80:
-                    error_response(self, "Round name must be 1-80 characters")
-                    return
-                with connect() as conn:
-                    try:
-                        cur = conn.execute(
-                            "INSERT INTO rounds (name, created_at) VALUES (?, ?)",
-                            (name, now_iso()),
-                        )
-                    except sqlite3.IntegrityError:
-                        error_response(self, "A round with that name already exists", HTTPStatus.CONFLICT)
-                        return
-                    json_response(self, {"id": cur.lastrowid, "name": name}, HTTPStatus.CREATED)
                 return
             if path == "/api/annotations":
                 data = read_json(self)
@@ -975,20 +909,6 @@ class Handler(SimpleHTTPRequestHandler):
             if path == "/api/instances/import":
                 if not require_admin(self):
                     return
-                with connect() as conn:
-                    active_round = conn.execute("SELECT id FROM rounds ORDER BY id DESC LIMIT 1").fetchone()
-                    round_id = active_round["id"]
-                    has_annotations = conn.execute(
-                        "SELECT 1 FROM annotations a JOIN instances i ON i.id = a.instance_id WHERE i.round_id = ? LIMIT 1",
-                        (round_id,),
-                    ).fetchone()
-                if has_annotations:
-                    error_response(
-                        self,
-                        "This round is locked because it has annotations. Create a new round before importing another set.",
-                        HTTPStatus.CONFLICT,
-                    )
-                    return
                 text = parse_multipart_csv(self)
                 reader = csv.DictReader(io.StringIO(text))
                 rows = list(reader)
@@ -1005,7 +925,7 @@ class Handler(SimpleHTTPRequestHandler):
                         for level in range(int(row["distractor_level"]) + 1, 6):
                             row[f"distractor_{level}_vi"] = ""
                             row[f"distractor_{level}_en"] = ""
-                        if insert_instance(conn, row, round_id):
+                        if insert_instance(conn, row):
                             inserted += 1
                         else:
                             skipped += 1

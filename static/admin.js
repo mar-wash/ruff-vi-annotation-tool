@@ -27,17 +27,6 @@ function showGate(show) {
 
 function render(payload) {
   latestPayload = payload;
-  const roundSelector = $("roundSelector");
-  const previousRound = roundSelector.value;
-  roundSelector.replaceChildren(...(payload.rounds || []).map((round) => {
-    const option = document.createElement("option");
-    option.value = String(round.id);
-    option.textContent = round.name;
-    return option;
-  }));
-  roundSelector.value = (payload.rounds || []).some((round) => String(round.id) === previousRound)
-    ? previousRound
-    : String(payload.rounds?.at(-1)?.id || "");
   const total = payload.annotations.length;
   const correct = payload.annotations.filter((row) => row.is_correct).length;
   const submitted = payload.annotations.filter((row) => row.submitted_at).length;
@@ -127,6 +116,7 @@ function exportCsv() {
     "participant_role",
     "term_set",
     "distractor_level",
+    "target_vi",
     "answer",
     "correct_answer",
     "is_correct",
@@ -144,43 +134,6 @@ function exportCsv() {
   link.download = "ruffvi_annotations.csv";
   link.click();
   URL.revokeObjectURL(url);
-}
-
-async function downloadRoundExport(type) {
-  const roundId = $("roundSelector").value;
-  if (!roundId) return;
-  const key = localStorage.getItem(keyStorage) || "";
-  const response = await fetch(`/api/admin/round-export?round_id=${encodeURIComponent(roundId)}&type=${encodeURIComponent(type)}`, {
-    headers: { Authorization: `Bearer ${key}` },
-  });
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "Export failed");
-  }
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `ruffvi_round_${roundId}_${type}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
-async function createRound() {
-  const name = prompt("Name this annotation round:");
-  if (!name?.trim()) return;
-  const key = localStorage.getItem(keyStorage) || "";
-  const response = await fetch("/api/rounds", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ name: name.trim() }),
-  });
-  const result = await response.json();
-  if (!response.ok) {
-    alert(result.error || "Could not create round");
-    return;
-  }
-  await load();
 }
 
 async function load() {
@@ -201,9 +154,6 @@ $("adminForm").addEventListener("submit", async (event) => {
 
 $("refreshAdmin").addEventListener("click", load);
 $("exportCsv").addEventListener("click", exportCsv);
-$("downloadRoundAnnotations").addEventListener("click", () => downloadRoundExport("annotations"));
-$("downloadRoundDisagreements").addEventListener("click", () => downloadRoundExport("disagreements"));
-$("createRound").addEventListener("click", createRound);
 $("lockAdmin").addEventListener("click", () => {
   localStorage.removeItem(keyStorage);
   $("adminKey").value = "";

@@ -40,7 +40,7 @@ Authorization: Bearer <ADMIN_SECRET>
 
 - Deploy to Railway or Render. A free tier is sufficient for small annotation rounds.
 - Set the environment variables in the platform dashboard.
-- Finalize each round's instance set before annotation starts. All annotators share the same randomized order. In the admin view, create a named round, import its CSV from `/admin/import`, then use **Round exports** to download its annotation records or disagreement-only CSV. A round's imports lock after its first annotation.
+- All annotators share the same randomized order. The admin view includes inter-annotator agreement metrics and a CSV export of annotation records.
 - Share the public annotation URL with annotators.
 - Keep the `ADMIN_SECRET` private; only researchers should use `/admin` and `/admin/import`.
 
@@ -70,7 +70,7 @@ Rules:
 - Distractor columns beyond `distractor_level` are ignored on import.
 - `correct_answer` must be one of: `anh`, `chị`, `cô`, `chú`, `ông`, `bà`, `em`, `nó`, `hắn`, `chanh`.
 - Rows with missing required fields are rejected with a row number and reason.
-- Duplicate rows matching `(occupation + term_set + narrator_position + distractor_level + intro_vi)` are skipped and reported.
+- Exact duplicate instances matching occupation, participant, term set, narrator position, distractor level, context, and target sentence are skipped and reported.
 
 ## API
 
@@ -78,8 +78,6 @@ Rules:
 - `POST /api/annotators/register` `{ "username": "..." }`
 - `GET /api/instances/queue?username=X`
 - `GET /api/instances`
-- `GET /api/admin/round-export?round_id=X&type=annotations|disagreements` with the admin secret
-- `POST /api/rounds` with the admin secret to create a named round
 - `POST /api/annotations`
 - `POST /api/annotations/submit` `{ "username": "..." }`
 - `GET /api/admin` with `Authorization: Bearer <ADMIN_SECRET>`
