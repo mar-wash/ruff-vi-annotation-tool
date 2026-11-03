@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Convert the generated TSV into six randomized, importer-ready CSV batches."""
+"""Convert the generated TSV into randomized importer-ready CSV output."""
 
 import argparse
 import csv
@@ -8,8 +8,9 @@ import re
 from pathlib import Path
 
 
-SOURCE = Path(__file__).with_name("vietnamese_instances_600.tsv")
+SOURCE = Path(__file__).with_name("sampled_for_humans_vietnamese.tsv")
 DEFAULT_OUTPUT_DIR = Path(__file__).with_name("upload_batches")
+DEFAULT_SINGLE_OUTPUT = Path(__file__).with_name("upload_instances_600.csv")
 BATCH_COUNT = 6
 BATCH_SIZE = 100
 CSV_HEADERS = [
@@ -76,6 +77,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--seed", type=int, default=20261008, help="Randomization seed (default: 20261008)")
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
+    parser.add_argument(
+        "--single-file",
+        action="store_true",
+        help=f"Write all 600 instances to {DEFAULT_SINGLE_OUTPUT.name} instead of six batch files.",
+    )
+    parser.add_argument("--single-output", type=Path, default=DEFAULT_SINGLE_OUTPUT)
     args = parser.parse_args()
 
     with SOURCE.open(encoding="utf-8", newline="") as source:
@@ -99,18 +106,27 @@ def main():
     duplicate_keys = len(instance_keys) - len(set(instance_keys))
 
     random.Random(args.seed).shuffle(import_rows)
-    args.output_dir.mkdir(parents=True, exist_ok=True)
-    for batch_index in range(BATCH_COUNT):
-        start = batch_index * BATCH_SIZE
-        batch = import_rows[start : start + BATCH_SIZE]
-        output_path = args.output_dir / f"instances_{batch_index + 1:02d}.csv"
-        with output_path.open("w", encoding="utf-8", newline="") as output:
+    if args.single_file:
+        args.single_output.parent.mkdir(parents=True, exist_ok=True)
+        with args.single_output.open("w", encoding="utf-8", newline="") as output:
             writer = csv.DictWriter(output, fieldnames=CSV_HEADERS, lineterminator="\n")
             writer.writeheader()
-            writer.writerows(batch)
-        print(f"{output_path}: {len(batch)} instances")
+            writer.writerows(import_rows)
+        print(f"{args.single_output}: {len(import_rows)} instances")
+        print(f"Created one randomized CSV ({len(import_rows)} rows total), seed={args.seed}.")
+    else:
+        args.output_dir.mkdir(parents=True, exist_ok=True)
+        for batch_index in range(BATCH_COUNT):
+            start = batch_index * BATCH_SIZE
+            batch = import_rows[start : start + BATCH_SIZE]
+            output_path = args.output_dir / f"instances_{batch_index + 1:02d}.csv"
+            with output_path.open("w", encoding="utf-8", newline="") as output:
+                writer = csv.DictWriter(output, fieldnames=CSV_HEADERS, lineterminator="\n")
+                writer.writeheader()
+                writer.writerows(batch)
+            print(f"{output_path}: {len(batch)} instances")
 
-    print(f"Created {BATCH_COUNT} randomized CSV batches ({expected} rows total), seed={args.seed}.")
+        print(f"Created {BATCH_COUNT} randomized CSV batches ({expected} rows total), seed={args.seed}.")
     if duplicate_keys:
         print(
             f"Warning: {duplicate_keys} rows are exact duplicates under the importer's full instance key. "
