@@ -38,15 +38,18 @@ CSV_HEADERS = [
 
 
 def split_sentences(text, uid, field_name):
-    sentences = re.split(r"(?<=[.!?])\s+", text.strip(), maxsplit=1)
-    if len(sentences) != 2:
+    sentences = re.split(r"(?<=[.!?])\s+", text.strip())
+    if len(sentences) < 2:
         raise ValueError(f"{field_name} for source UID {uid} must contain context and target sentences")
     return sentences
 
 
 def to_import_row(source_row):
-    context, _ = split_sentences(source_row["sentence"], source_row["uid"], "sentence")
-    _, target = split_sentences(source_row["human_sentence"], source_row["uid"], "human_sentence")
+    source_sentences = split_sentences(source_row["sentence"], source_row["uid"], "sentence")
+    human_sentences = split_sentences(source_row["human_sentence"], source_row["uid"], "human_sentence")
+    if len(source_sentences) != len(human_sentences):
+        raise ValueError(f"sentence and human_sentence lengths differ for source UID {source_row['uid']}")
+    distractors = source_sentences[1:-1]
     row = {header: "" for header in CSV_HEADERS}
     row.update(
         {
@@ -55,14 +58,17 @@ def to_import_row(source_row):
             "participant_role": source_row["participant"],
             "participant_role_en": "N/A",
             "term_set": source_row["pronoun"],
-            "distractor_level": 0,
-            "intro_vi": context,
+            "distractor_level": len(distractors),
+            "intro_vi": source_sentences[0],
             "intro_en": "N/A",
-            "target_vi": target,
+            "target_vi": human_sentences[-1],
             "target_en": "N/A",
             "correct_answer": source_row["pronoun"],
         }
     )
+    for level, distractor in enumerate(distractors, start=1):
+        row[f"distractor_{level}_vi"] = distractor
+        row[f"distractor_{level}_en"] = "N/A"
     return row
 
 

@@ -30,7 +30,7 @@ The app checks these variables on startup. If any are missing, it logs a clear e
 3. Download the CSV template or prepare a CSV with the documented headers.
 4. Upload the CSV and confirm the preview.
 
-The import page supports both additive imports and **Replace current set**. Replacement validates the CSV before deleting anything, then removes all current instances and their saved annotations before loading the new set. Annotator accounts remain. Export annotations first if you need to keep a copy. Upload CSVs do not need a `narrator_position` column; imports set it internally to `unspecified`.
+The import page supports both additive imports and **Replace current set**. Replacement validates the CSV before deleting anything, then removes all current instances and their saved annotations before loading the new set. Annotator accounts remain. Export annotations first if you need to keep a copy. Upload CSVs do not need a `narrator_position` column; imports set it internally to `unspecified`. The instance chunker preserves each source row's distractor level and places the intervening sentences into the distractor columns.
 
 CSV upload requests must include:
 
