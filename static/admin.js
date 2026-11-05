@@ -11,6 +11,12 @@ function pct(value) {
   return value === null || value === undefined ? "-" : `${value}%`;
 }
 
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  })[character]);
+}
+
 async function fetchAdmin() {
   const key = sessionStorage.getItem(keyStorage) || "";
   const response = await fetch("/api/admin", {
@@ -61,7 +67,7 @@ function render(payload) {
       <td>${row.annotations}</td>
       <td>${row.unique_answers}</td>
       <td>${row.unanimous ? "yes" : "no"}</td>
-      <td>${row.majority_answer} (${row.majority_count})</td>
+      <td>${escapeHtml(row.majority_answer)} (${row.majority_count})</td>
     </tr>
   `).join("") || `<tr><td colspan="5">No annotated instances yet.</td></tr>`;
 
@@ -93,11 +99,11 @@ function render(payload) {
     <tr>
       <td>${row.username}</td>
       <td>#${row.instance_id}<br><span class="muted">${row.occupation} · D${row.distractor_level}</span></td>
-      <td>${row.answer}</td>
-      <td>${row.correct_answer}</td>
+      <td>${escapeHtml(row.answer)}</td>
+      <td>${escapeHtml(row.correct_answer)}</td>
       <td>${row.is_correct ? "yes" : "no"}</td>
       <td>${fmt(row.submitted_at)}</td>
-      <td>${row.reasoning || "-"}</td>
+      <td>${escapeHtml(row.reasoning || "-")}</td>
     </tr>
   `).join("") || `<tr><td colspan="7">No annotations yet.</td></tr>`;
 }

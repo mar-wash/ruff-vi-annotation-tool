@@ -1,4 +1,5 @@
-const terms = ["anh", "chị", "cô", "chú", "ông", "bà", "em", "nó", "hắn", "chanh"];
+const terms = ["anh", "chị", "cô", "chú", "ông", "bà", "em", "chanh"];
+const OTHER_ANSWER = "__other__";
 const storage = {
   queue: (username) => `ruffvi_queue_${username}`,
   skipWarning: "ruffvi_skip_warning_shown",
@@ -47,12 +48,22 @@ function setProgress() {
 }
 
 function renderTerms() {
-  $("answerOptions").innerHTML = terms.map((term) => `
+  $("answerOptions").innerHTML = [...terms, OTHER_ANSWER].map((term) => `
     <label class="termOption">
       <input type="radio" name="answer" value="${term}" required>
-      ${term}
+      ${term === OTHER_ANSWER ? "Other" : term}
     </label>
   `).join("");
+  $("otherPronoun").addEventListener("input", updateOtherPronounRequirement);
+  document.querySelectorAll('input[name="answer"]').forEach((radio) => {
+    radio.addEventListener("change", updateOtherPronounRequirement);
+  });
+}
+
+function updateOtherPronounRequirement() {
+  const isOther = document.querySelector('input[name="answer"]:checked')?.value === OTHER_ANSWER;
+  show($("otherPronounField"), isOther);
+  $("otherPronoun").required = isOther;
 }
 
 function renderInstance() {
@@ -78,11 +89,17 @@ function renderInstance() {
   }
   $("distractors").innerHTML = distractors.join("");
   $("annotationForm").reset();
+  $("otherPronoun").value = "";
   if (annotation) {
-    const option = document.querySelector(`input[name="answer"][value="${annotation.answer}"]`);
+    const option = document.querySelector(`input[name="answer"][value="${CSS.escape(annotation.answer)}"]`);
     if (option) option.checked = true;
+    else if (annotation.answer) {
+      document.querySelector(`input[name="answer"][value="${OTHER_ANSWER}"]`).checked = true;
+      $("otherPronoun").value = annotation.answer;
+    }
     $("reasoning").value = annotation.reasoning || "";
   }
+  updateOtherPronounRequirement();
   const isSubmitted = Boolean(annotation?.submitted_at);
   $("annotationStatus").textContent = isSubmitted
     ? "This annotation has been submitted and is locked."
@@ -155,7 +172,12 @@ async function saveAnnotation(event) {
   event.preventDefault();
   const instance = instanceById.get(queue[position]);
   if (!instance) return;
-  const answer = new FormData($("annotationForm")).get("answer");
+  const selectedAnswer = new FormData($("annotationForm")).get("answer");
+  const answer = selectedAnswer === OTHER_ANSWER ? $("otherPronoun").value.trim() : selectedAnswer;
+  if (selectedAnswer === OTHER_ANSWER && !answer) {
+    $("otherPronoun").focus();
+    return;
+  }
   const reasoning = $("reasoning").value.trim();
   const result = await api("/api/annotations", {
     method: "POST",

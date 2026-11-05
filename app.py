@@ -51,7 +51,7 @@ DATA = DB_PATH.parent
 ADMIN_SECRET = os.environ["ADMIN_SECRET"]
 
 USERNAME_RE = re.compile(r"^[a-zA-Z0-9_]{3,24}$")
-VALID_TERMS = {"anh", "chị", "cô", "chú", "ông", "bà", "em", "nó", "hắn", "chanh"}
+VALID_TERMS = {"anh", "chị", "cô", "chú", "ông", "bà", "em", "chanh"}
 CSV_HEADERS = [
     "occupation",
     "occupation_en",
@@ -866,9 +866,11 @@ class Handler(SimpleHTTPRequestHandler):
                 username = data.get("username", "")
                 instance_id = int(data.get("instance_id", 0))
                 answer = data.get("answer", "")
+                if isinstance(answer, str):
+                    answer = answer.strip()
                 reasoning = data.get("reasoning", "")
-                if answer not in VALID_TERMS:
-                    error_response(self, "Invalid answer")
+                if not isinstance(answer, str) or not answer or len(answer) > 100:
+                    error_response(self, "Answer must be between 1 and 100 characters")
                     return
                 with connect() as conn:
                     annotator = get_annotator(conn, username)
